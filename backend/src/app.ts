@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { errorMiddleware } from './middleware/error.middleware';
+import { authMiddleware } from './middleware/auth.middleware';
 import ingestRoutes from './routes/ingest.routes';
 import sessionRoutes from './routes/session.routes';
 import chatRoutes from './routes/chat.routes';
@@ -29,6 +30,7 @@ export function createApp() {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  app.use('/api', authMiddleware);
   app.use('/api/ingest', ingestRoutes);
   app.use('/api/sessions', sessionRoutes);
   app.use('/api/chat', chatRoutes);

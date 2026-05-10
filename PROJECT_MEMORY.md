@@ -50,7 +50,8 @@ Design doc bundles agent + tools + streaming into one spike. This is split:
 | 4b | SSE streaming of agent thoughts + tokens | ✅ Done |
 | 4c | `read_file`, `write_suggestion`, `run_code` tools | ✅ Done |
 | 5 | Angular frontend shell | ✅ Done |
-| 6 | Polish + production readiness | 🔲 Next |
+| 6 | Deployment (GitHub Pages + Render) | ✅ Done |
+| 7 | Polish + production readiness | ✅ Done |
 
 ---
 
@@ -204,14 +205,77 @@ MAX_CONCURRENT_INGESTIONS=3
 
 ---
 
+## Deployment
+
+| Layer | Platform | URL |
+|---|---|---|
+| Frontend | GitHub Pages (custom domain) | https://codeassist.tarun.win |
+| Backend | Render | https://codebase-assistant-4zk6.onrender.com |
+
+### Deploy triggers
+- **Frontend:** GitHub Actions on push to `main` when `frontend/**` changes → builds Angular → pushes to `gh-pages` branch
+- **Backend:** Render auto-deploys on push to `main` (set Ignored Paths: `frontend/**` to avoid unnecessary redeploys)
+
+### Render build settings
+- Root Directory: `backend`
+- Build Command: `npm install --include=dev && npm run build` (--include=dev needed because NODE_ENV=production skips devDeps but tsc + @types/* are required)
+- Start Command: `npm start`
+
+### DNS
+- CNAME: `codeassist` → `<github-username>.github.io` (tarun.win registrar)
+- GitHub Pages custom domain: `codeassist.tarun.win`, HTTPS enforced
+
+---
+
+## Frontend File Map
+
+```
+frontend/
+  src/
+    environments/
+      environment.ts          Dev: http://localhost:3000/api
+      environment.prod.ts     Prod: https://codebase-assistant-4zk6.onrender.com/api
+    app/
+      core/
+        models/
+          session.model.ts    Session, FileTreeNode, IngestionProgress
+          message.model.ts    Message, Citation, SSEEvent types
+        services/
+          api.service.ts      Base HTTP wrapper + streamUrl()
+          session.service.ts  Signal-based session store
+          ingest.service.ts   URL + ZIP upload + status polling
+          chat.service.ts     POST→streamId→EventSource SSE handler
+          toast.service.ts    Signal-based toast queue
+        interceptors/
+          error.interceptor.ts  Global HTTP error → toast
+        guards/
+          session.guard.ts    Validates session exists before chat route
+      layout/
+        header/               Top bar with active session name + New Session button
+        sidebar/              Session list with delete, loads on init
+      features/
+        upload/               GitHub URL input + ZIP drag-and-drop + progress bar
+        chat/                 Streaming chat panel, token-by-token render
+          message/            Markdown-aware bubble with inline code block parsing
+          citations/          Source chips (filePath:startLine–endLine) per message
+        file-tree/            Recursive collapsible tree, highlighted after agent runs
+        diff-viewer/          Syntax-coloured unified diff per write_suggestion event
+      shared/components/
+        toast/                Animated toast stack (bottom-right)
+        spinner/              Reusable SVG spinner (sm/md/lg)
+        code-block/           Code block with copy button
+```
+
+---
+
 ## Known Gaps / TODOs
 
-- [ ] Auth middleware not yet implemented (API key header for production)
 - [ ] `search_docs` tool (web search fallback) design TBD
-- [ ] Chat history not yet wired to SQLite `messages` table (Phase 3)
 - [ ] Semaphore has TOCTOU race — acceptable for single-server portfolio
 - [ ] Progress resets on server restart — in-memory only
-- [ ] `better-sqlite3` requires node-gyp (native addon). Render.com has build tools by default.
+- [x] Auth middleware — optional `X-API-Key` header, activated by setting `API_KEY` env var
+- [x] Session expiry — auto-deletes sessions + Pinecone namespaces older than `SESSION_MAX_AGE_DAYS` (default 7)
+- [x] Render cold start — self-ping every 10 min in production keeps free tier warm
 
 ---
 
