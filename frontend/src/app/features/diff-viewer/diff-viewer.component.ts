@@ -30,10 +30,17 @@ interface DiffEntry {
                   <p class="text-xs text-gray-400 mt-0.5">{{ entry.summary }}</p>
                 }
               </div>
-              <button
-                class="shrink-0 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                (click)="copyDiff(entry.diff)"
-              >{{ copied() === entry.filePath ? '✓' : 'Copy' }}</button>
+              <div class="flex items-center gap-2 shrink-0">
+                <button
+                  class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                  (click)="copyDiff(entry)"
+                >{{ copied() === entry.filePath ? '✓ Copied' : 'Copy' }}</button>
+                <button
+                  class="text-xs text-brand-400 hover:text-brand-300 transition-colors"
+                  (click)="downloadPatch(entry)"
+                  title="Download as .patch file — apply with: git apply file.patch"
+                >↓ .patch</button>
+              </div>
             </div>
             <pre class="text-xs font-mono overflow-x-auto rounded bg-code-bg border border-code-border p-3 leading-relaxed"><code [innerHTML]="highlight(entry.diff)"></code></pre>
           </div>
@@ -68,9 +75,20 @@ export class DiffViewerComponent {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  copyDiff(diff: string): void {
-    navigator.clipboard.writeText(diff);
-    this.copied.set(diff);
+  copyDiff(entry: DiffEntry): void {
+    navigator.clipboard.writeText(entry.diff);
+    this.copied.set(entry.filePath);
     setTimeout(() => this.copied.set(null), 2000);
+  }
+
+  downloadPatch(entry: DiffEntry): void {
+    const blob = new Blob([entry.diff], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    // e.g. "src/auth/guard.ts" → "src-auth-guard.ts.patch"
+    a.download = entry.filePath.replace(/\//g, '-') + '.patch';
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }

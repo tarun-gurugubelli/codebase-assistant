@@ -48,10 +48,11 @@ Design doc bundles agent + tools + streaming into one spike. This is split:
 | 3 | Plain RAG chat — embed query → Pinecone → Claude → JSON response | ✅ Done |
 | 4a | Agent: `search_codebase` only, no streaming | ✅ Done |
 | 4b | SSE streaming of agent thoughts + tokens | ✅ Done |
-| 4c | `read_file`, `write_suggestion`, `run_code` tools | ✅ Done |
+| 4c | `read_file`, `write_suggestion`, `run_code`, `search_docs` tools | ✅ Done |
 | 5 | Angular frontend shell | ✅ Done |
 | 6 | Deployment (GitHub Pages + Render) | ✅ Done |
 | 7 | Polish + production readiness | ✅ Done |
+| Extra | CDK virtual scroll, dark/light theme, progress persistence | ✅ Done |
 
 ---
 
@@ -246,6 +247,7 @@ frontend/
           ingest.service.ts   URL + ZIP upload + status polling
           chat.service.ts     POST→streamId→EventSource SSE handler
           toast.service.ts    Signal-based toast queue
+          theme.service.ts    isDark signal, localStorage + prefers-color-scheme, toggles .dark on html
         interceptors/
           error.interceptor.ts  Global HTTP error → toast
         guards/
@@ -258,7 +260,7 @@ frontend/
         chat/                 Streaming chat panel, token-by-token render
           message/            Markdown-aware bubble with inline code block parsing
           citations/          Source chips (filePath:startLine–endLine) per message
-        file-tree/            Recursive collapsible tree, highlighted after agent runs
+        file-tree/            CDK virtual scroll flat tree (flattens hierarchy on expand/collapse)
         diff-viewer/          Syntax-coloured unified diff per write_suggestion event
       shared/components/
         toast/                Animated toast stack (bottom-right)
@@ -270,12 +272,17 @@ frontend/
 
 ## Known Gaps / TODOs
 
-- [ ] `search_docs` tool (web search fallback) design TBD
 - [ ] Semaphore has TOCTOU race — acceptable for single-server portfolio
-- [ ] Progress resets on server restart — in-memory only
+- [x] Progress resets on server restart → persisted to SQLite `sessions.progress` column; survives restarts
 - [x] Auth middleware — optional `X-API-Key` header, activated by setting `API_KEY` env var
 - [x] Session expiry — auto-deletes sessions + Pinecone namespaces older than `SESSION_MAX_AGE_DAYS` (default 7)
 - [x] Render cold start — self-ping every 10 min in production keeps free tier warm
+- [x] Esc / Stop button — cancels active SSE stream, marks message as cancelled
+- [x] Download .patch — diff viewer has "↓ .patch" button; apply with `git apply`
+- [x] `run_code` — Node.js `vm` sandbox, JS/TS only, 5s timeout (E2B removed — not free)
+- [x] search_docs tool — Tavily web search registered when `TAVILY_API_KEY` is set
+- [x] CDK virtual scroll on file tree — @angular/cdk ScrollingModule, flat list with depth tracking, handles 500+ file repos
+- [x] Dark/light mode toggle — ThemeService reads `localStorage`, respects `prefers-color-scheme`, toggles `.dark` on `<html>`, button in header
 
 ---
 

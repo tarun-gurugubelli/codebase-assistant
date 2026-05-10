@@ -5,6 +5,12 @@
 @layer base {
   html {
     @apply bg-gray-950 text-gray-100;
+    color-scheme: dark;
+  }
+
+  html:not(.dark) {
+    @apply bg-gray-50 text-gray-900;
+    color-scheme: light;
   }
 
   body {
@@ -14,6 +20,21 @@
   * {
     @apply border-gray-800;
   }
+
+  /* Light-mode surface remapping — avoids touching each component */
+  html:not(.dark) .bg-gray-950 { background-color: #ffffff; }
+  html:not(.dark) .bg-gray-900 { background-color: #f3f4f6; }
+  html:not(.dark) .bg-gray-800 { background-color: #e5e7eb; }
+  html:not(.dark) .bg-gray-700 { background-color: #d1d5db; }
+  html:not(.dark) .border-gray-800 { border-color: #d1d5db; }
+  html:not(.dark) .border-gray-700 { border-color: #e5e7eb; }
+  html:not(.dark) .text-gray-100 { color: #111827; }
+  html:not(.dark) .text-gray-300 { color: #374151; }
+  html:not(.dark) .text-gray-400 { color: #6b7280; }
+  html:not(.dark) .text-gray-500 { color: #9ca3af; }
+  html:not(.dark) .text-gray-600 { color: #6b7280; }
+  html:not(.dark) .hover\:bg-gray-800:hover { background-color: #e5e7eb; }
+  html:not(.dark) .hover\:bg-gray-900:hover { background-color: #f3f4f6; }
 
   ::-webkit-scrollbar {
     width: 6px;

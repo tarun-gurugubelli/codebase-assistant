@@ -9,6 +9,7 @@ export class ChatService {
 
   readonly messages = signal<Message[]>([]);
   readonly isStreaming = signal(false);
+  private activeStream: EventSource | null = null;
 
   loadHistory(sessionId: string): Observable<{ messages: Message[] }> {
     return this.api.get<{ messages: Message[] }>(`/chat/${sessionId}/history`).pipe(
@@ -24,6 +25,23 @@ export class ChatService {
 
   clearLocal(): void {
     this.messages.set([]);
+  }
+
+  cancelStream(): void {
+    if (!this.activeStream) return;
+    this.activeStream.close();
+    this.activeStream = null;
+    this.isStreaming.set(false);
+    // Mark the last (incomplete) assistant message as cancelled
+    this.messages.update(msgs => {
+      if (msgs.length === 0) return msgs;
+      const last = msgs[msgs.length - 1];
+      if (last.role !== 'assistant') return msgs;
+      return msgs.with(msgs.length - 1, {
+        ...last,
+        content: last.content + (last.content ? '\n\n*[cancelled]*' : '*[cancelled]*'),
+      });
+    });
   }
 
   sendMessage(
@@ -55,10 +73,12 @@ export class ChatService {
         next: ({ streamId }) => {
           const url = this.api.streamUrl(`/chat/${sessionId}/stream/${streamId}`);
           const es = new EventSource(url);
+          this.activeStream = es;
 
           es.onmessage = event => {
             if (event.data === '[DONE]') {
               es.close();
+              this.activeStream = null;
               this.isStreaming.set(false);
               return;
             }
@@ -98,6 +118,7 @@ export class ChatService {
 
           es.onerror = () => {
             es.close();
+            this.activeStream = null;
             this.isStreaming.set(false);
           };
         },
