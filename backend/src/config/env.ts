@@ -24,6 +24,12 @@ const envSchema = z.object({
   RATE_LIMIT_MAX_REQUESTS: z.string().default('100').transform(Number),
   MAX_REPO_SIZE_MB: z.string().default('50').transform(Number),
   MAX_CONCURRENT_INGESTIONS: z.string().default('3').transform(Number),
+
+  // Optional: set to require X-API-Key header on all /api routes
+  API_KEY: z.string().optional(),
+
+  // Sessions older than this are auto-deleted (0 = disabled)
+  SESSION_MAX_AGE_DAYS: z.string().default('7').transform(Number),
 });
 
 const parsed = envSchema.safeParse(process.env);
