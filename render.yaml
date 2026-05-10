@@ -27,6 +27,9 @@ services:
         sync: false
       - key: PINECONE_INDEX_NAME
         value: codebase-assistant
+      # Optional — enables search_docs tool (web search for library docs via Tavily)
+      - key: TAVILY_API_KEY
+        sync: false
       - key: SESSION_DB_PATH
         value: ./data/sessions.db
       - key: TEMP_CLONE_DIR

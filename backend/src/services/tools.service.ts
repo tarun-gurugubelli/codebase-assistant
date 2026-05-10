@@ -2,13 +2,36 @@ import vm from 'vm';
 import ts from 'typescript';
 import { createPatch } from 'diff';
 import OpenAI from 'openai';
+import { tavily } from '@tavily/core';
+import { env } from '../config/env';
 import { sessionService } from './session.service';
 import { retrieveRelevantChunks, RetrievedChunk } from './retrieval.service';
 import { streamService } from './stream.service';
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
 
-export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+const SEARCH_DOCS_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'search_docs',
+    description:
+      'Search official documentation and the web for information about a library, framework, or API ' +
+      'used in this codebase. Use when the codebase alone does not contain enough context to answer ' +
+      'a question about an external dependency.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query:   { type: 'string', description: 'The search query — be specific, include the library name' },
+        library: { type: 'string', description: 'Optional: library or framework name to focus the search (e.g. "React", "Prisma")' },
+      },
+      required: ['query'],
+    },
+  },
+};
+
+// Built lazily so env is fully parsed before we read TAVILY_API_KEY
+export function getTools(): OpenAI.Chat.Completions.ChatCompletionTool[] {
+  const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
@@ -78,7 +101,10 @@ export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
-];
+  ];
+  if (env.TAVILY_API_KEY) tools.push(SEARCH_DOCS_TOOL);
+  return tools;
+}
 
 // ─── Return shape from each handler ──────────────────────────────────────────
 
@@ -156,16 +182,22 @@ function handleWriteSuggestion(
   };
 }
 
-// Runs JS/TS in a restricted vm sandbox (no fs, no network, no require).
-// Timeout: 5 s. Only console output is captured.
-function handleRunCode(
+// Runs code via E2B when E2B_API_KEY is set (supports Python + JS/TS).
+// Falls back to Node.js vm sandbox for JS/TS when key is absent.
+async function handleRunCode(
+  args: { code: string; language: string },
+  streamId?: string,
+): Promise<ToolHandleResult> {
+  streamId && streamService.push(streamId, { type: 'thinking', tool: 'run_code', language: args.language });
+
+  return runWithVm(args, streamId);
+}
+
+function runWithVm(
   args: { code: string; language: string },
   streamId?: string,
 ): ToolHandleResult {
-  streamId && streamService.push(streamId, { type: 'thinking', tool: 'run_code', language: args.language });
-
   let jsCode = args.code;
-
   if (args.language === 'typescript') {
     const result = ts.transpileModule(args.code, {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
@@ -186,7 +218,6 @@ function handleRunCode(
 
   let stderr = '';
   let exitCode = 0;
-
   try {
     vm.runInNewContext(jsCode, sandbox, { timeout: 5000 });
   } catch (err: unknown) {
@@ -196,8 +227,41 @@ function handleRunCode(
 
   const output = { stdout: logs.join('\n'), stderr, exitCode };
   streamId && streamService.push(streamId, { type: 'code_result', ...output });
-
   return { toolContent: JSON.stringify(output) };
+}
+
+async function handleSearchDocs(
+  args: { query: string; library?: string },
+  streamId?: string,
+): Promise<ToolHandleResult> {
+  const query = args.library ? `${args.library} ${args.query}` : args.query;
+
+  streamId && streamService.push(streamId, { type: 'thinking', tool: 'search_docs', query });
+
+  if (!env.TAVILY_API_KEY) {
+    return { toolContent: JSON.stringify({ error: 'search_docs is not configured (TAVILY_API_KEY missing)' }) };
+  }
+
+  const client = tavily({ apiKey: env.TAVILY_API_KEY });
+  const response = await client.search(query, {
+    searchDepth: 'basic',
+    maxResults: 5,
+    includeAnswer: true,
+  });
+
+  const results = response.results.map(r => ({
+    title: r.title,
+    url: r.url,
+    snippet: r.content.slice(0, 400),
+    score: Math.round((r.score ?? 0) * 100) / 100,
+  }));
+
+  return {
+    toolContent: JSON.stringify({
+      answer: response.answer ?? null,
+      results,
+    }),
+  };
 }
 
 // ─── Central dispatcher ───────────────────────────────────────────────────────
@@ -223,7 +287,10 @@ export async function handleToolCall(
       );
 
     case 'run_code':
-      return handleRunCode(args as { code: string; language: string }, streamId);
+      return await handleRunCode(args as { code: string; language: string }, streamId);
+
+    case 'search_docs':
+      return handleSearchDocs(args as { query: string; library?: string }, streamId);
 
     default:
       return { toolContent: JSON.stringify({ error: `Unknown tool: ${toolCall.function.name}` }) };

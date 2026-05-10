@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'fs';
 import path from 'path';
 import { env } from '../config/env';
-import { Session, FileTreeNode } from '../types/session.types';
+import { Session, FileTreeNode, IngestionProgress } from '../types/session.types';
 
 const dbDir = path.dirname(env.SESSION_DB_PATH);
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
@@ -13,6 +13,9 @@ const db = new DatabaseSync(env.SESSION_DB_PATH);
 
 db.exec('PRAGMA journal_mode = WAL');
 db.exec('PRAGMA foreign_keys = ON');
+
+// Migrate: add progress column if it doesn't exist yet
+try { db.exec('ALTER TABLE sessions ADD COLUMN progress TEXT'); } catch { /* already exists */ }
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
@@ -25,7 +28,8 @@ db.exec(`
     chunk_count  INTEGER NOT NULL DEFAULT 0,
     vector_count INTEGER NOT NULL DEFAULT 0,
     file_tree    TEXT NOT NULL DEFAULT '[]',
-    error_message TEXT
+    error_message TEXT,
+    progress     TEXT
   );
 
   CREATE TABLE IF NOT EXISTS files (
@@ -149,5 +153,18 @@ export const sessionService = {
 
   clearMessages(sessionId: string): void {
     db.prepare('DELETE FROM messages WHERE session_id = ?').run(sessionId);
+  },
+
+  setProgress(sessionId: string, progress: IngestionProgress): void {
+    db.prepare('UPDATE sessions SET progress = ? WHERE id = ?').run(
+      JSON.stringify(progress), sessionId,
+    );
+  },
+
+  getProgress(sessionId: string): IngestionProgress | null {
+    const row = db.prepare('SELECT progress FROM sessions WHERE id = ?').get(sessionId) as
+      { progress: string | null } | undefined;
+    if (!row?.progress) return null;
+    return JSON.parse(row.progress) as IngestionProgress;
   },
 };
