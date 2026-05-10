@@ -9,6 +9,7 @@ import {
   ElementRef,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
+  HostListener,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatService } from '../../core/services/chat.service';
@@ -82,22 +83,30 @@ import { FileTreeNode } from '../../core/models/session.model';
               (keydown)="onKeydown($event)"
               (input)="autoResize($event)"
             ></textarea>
-            <button
-              class="btn-primary shrink-0 h-[42px] w-[42px] flex items-center justify-center"
-              [disabled]="!inputText.trim() || chatService.isStreaming()"
-              (click)="send()"
-            >
-              @if (chatService.isStreaming()) {
-                <app-spinner size="sm" />
-              } @else {
+            @if (chatService.isStreaming()) {
+              <button
+                class="shrink-0 h-[42px] w-[42px] flex items-center justify-center rounded-lg bg-red-700 hover:bg-red-600 text-white transition-colors"
+                title="Stop (Esc)"
+                (click)="cancel()"
+              >
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="1" />
+                </svg>
+              </button>
+            } @else {
+              <button
+                class="btn-primary shrink-0 h-[42px] w-[42px] flex items-center justify-center"
+                [disabled]="!inputText.trim()"
+                (click)="send()"
+              >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
-              }
-            </button>
+              </button>
+            }
           </div>
           <div class="flex items-center justify-between mt-1.5">
-            <p class="text-xs text-gray-600">Enter to send · Shift+Enter for newline</p>
+            <p class="text-xs text-gray-600">Enter to send · Shift+Enter for newline · Esc to stop</p>
             <button class="text-xs text-gray-600 hover:text-gray-400 transition-colors" (click)="clearHistory()">Clear history</button>
           </div>
         </div>
@@ -249,6 +258,15 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       this.send();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  cancel(): void {
+    if (this.chatService.isStreaming()) {
+      this.chatService.cancelStream();
+      this.thinkingStep.set(null);
+      this.cdr.markForCheck();
     }
   }
 

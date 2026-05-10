@@ -254,10 +254,13 @@ The agent runs a ReAct-style tool loop (max 8 iterations) before streaming its f
 |---|---|---|
 | `search_codebase` | First call on every question — finds relevant chunks via Pinecone | Ranked code chunks with file + line metadata |
 | `read_file` | When a full file is needed beyond what search returned | Complete file content from SQLite |
-| `write_suggestion` | When asked to fix, refactor, or optimise | Unified diff patch via the `diff` package |
-| `run_code` | To verify a hypothesis or reproduce a bug | stdout / stderr / exit code from Node.js vm sandbox |
+| `write_suggestion` | When asked to fix, refactor, or optimise | Unified diff patch — downloadable as `.patch` file |
+| `run_code` | To verify a hypothesis or reproduce a bug | stdout / stderr / exit code |
+| `search_docs` | When the codebase lacks context about an external dependency | Top web results + synthesised answer via Tavily |
 
-**Sandbox security:** `run_code` executes in a Node.js `vm` context with a 5-second timeout. Only `Math`, `JSON`, and `console` are available — no `require`, no `process`, no file system, no network.
+**`run_code` execution:** Node.js `vm` sandbox — **JavaScript and TypeScript only**, 5s timeout, no `require`/`fs`/network.
+
+**`search_docs` availability:** Only registered when `TAVILY_API_KEY` is set. The agent won't see or try to use it otherwise.
 
 ---
 
@@ -374,6 +377,9 @@ MAX_CONCURRENT_INGESTIONS=3
 
 # Auto-delete sessions older than N days (0 = disabled)
 SESSION_MAX_AGE_DAYS=7
+
+# Optional — enables search_docs tool (web search for library/framework docs)
+# TAVILY_API_KEY=your-tavily-key
 ```
 
 ---
