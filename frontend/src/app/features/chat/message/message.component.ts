@@ -19,7 +19,7 @@ import { CodeBlockComponent } from '../../../shared/components/code-block/code-b
         {{ message.role === 'assistant' ? 'AI' : 'U' }}
       </div>
 
-      <div class="flex-1 min-w-0 space-y-1" [class.items-end]="message.role === 'user'" [class.flex]="message.role === 'user'" [class.flex-col]="message.role === 'user'">
+      <div class="flex-1 min-w-0 space-y-2" [class.items-end]="message.role === 'user'" [class.flex]="message.role === 'user'" [class.flex-col]="message.role === 'user'">
         <!-- Bubble -->
         <div
           class="px-3.5 py-2.5 rounded-xl text-sm leading-relaxed max-w-prose"
