@@ -1,9 +1,8 @@
-import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, output, ChangeDetectionStrategy, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { SessionService } from '../../core/services/session.service';
 import { ToastService } from '../../core/services/toast.service';
 import { SpinnerComponent } from '../../shared/components/spinner/spinner.component';
-import { signal } from '@angular/core';
 import { Session } from '../../core/models/session.model';
 
 @Component({
@@ -12,8 +11,16 @@ import { Session } from '../../core/models/session.model';
   imports: [SpinnerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <aside class="w-56 bg-gray-950 border-r border-gray-800 flex flex-col overflow-hidden">
-      <div class="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sessions</div>
+    <aside class="w-64 h-full bg-gray-950 border-r border-gray-800 flex flex-col overflow-hidden">
+      <!-- Header row with close button (mobile only) -->
+      <div class="flex items-center justify-between px-3 py-3">
+        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sessions</span>
+        <button class="md:hidden btn-ghost p-1" (click)="close.emit()">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
       <nav class="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
         @if (loading()) {
@@ -58,6 +65,7 @@ export class SidebarComponent implements OnInit {
   private router = inject(Router);
   private toast = inject(ToastService);
   loading = signal(true);
+  close = output();
 
   ngOnInit(): void {
     this.sessionService.loadAll().subscribe({
@@ -69,6 +77,7 @@ export class SidebarComponent implements OnInit {
   navigate(session: Session): void {
     if (session.status === 'ready') {
       this.router.navigate(['/session', session.id]);
+      this.close.emit();
     }
   }
 
