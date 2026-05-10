@@ -15,7 +15,8 @@ const envSchema = z.object({
   PINECONE_API_KEY: z.string().min(1, 'PINECONE_API_KEY is required'),
   PINECONE_INDEX_NAME: z.string().default('codebase-assistant'),
 
-  E2B_API_KEY: z.string().optional(),
+  // Tavily — when set, search_docs tool is registered and available to the agent
+  TAVILY_API_KEY: z.string().optional(),
 
   SESSION_DB_PATH: z.string().default('./data/sessions.db'),
   TEMP_CLONE_DIR: z.string().default('./tmp/repos'),

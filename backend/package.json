@@ -10,6 +10,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
     "@pinecone-database/pinecone": "^3.0.0",
+    "@tavily/core": "^0.7.3",
     "adm-zip": "^0.5.10",
     "cors": "^2.8.5",
     "diff": "^9.0.0",

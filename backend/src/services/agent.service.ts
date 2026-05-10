@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { env } from '../config/env';
 import { RetrievedChunk } from './retrieval.service';
 import { streamService } from './stream.service';
-import { TOOLS, handleToolCall } from './tools.service';
+import { getTools, handleToolCall } from './tools.service';
 
 const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
@@ -52,7 +52,7 @@ async function runToolLoop(
     const response = await openai.chat.completions.create({
       model: env.CHAT_MODEL,
       messages,
-      tools: TOOLS,
+      tools: getTools(),
       tool_choice: 'auto',
     });
 
