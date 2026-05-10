@@ -42,11 +42,12 @@ async function runToolLoop(
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
   sessionId: string,
   streamId?: string,
-): Promise<{ allCitations: RetrievedChunk[]; allSuggestions: AgentSuggestion[]; steps: AgentStep[]; totalTokens: number }> {
+): Promise<{ allCitations: RetrievedChunk[]; allSuggestions: AgentSuggestion[]; steps: AgentStep[]; totalTokens: number; finalAnswer: string }> {
   const allCitations: RetrievedChunk[] = [];
   const allSuggestions: AgentSuggestion[] = [];
   const steps: AgentStep[] = [];
   let totalTokens = 0;
+  let finalAnswer = '';
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const response = await openai.chat.completions.create({
@@ -60,7 +61,7 @@ async function runToolLoop(
     totalTokens += response.usage?.total_tokens ?? 0;
 
     if (choice.finish_reason !== 'tool_calls' || !choice.message.tool_calls?.length) {
-      messages.push(choice.message);
+      finalAnswer = choice.message.content ?? '';
       break;
     }
 
@@ -95,7 +96,7 @@ async function runToolLoop(
     }
   }
 
-  return { allCitations, allSuggestions, steps, totalTokens };
+  return { allCitations, allSuggestions, steps, totalTokens, finalAnswer };
 }
 
 // ─── Non-streaming agent ──────────────────────────────────────────────────────
@@ -111,16 +112,14 @@ export async function runAgent(
     { role: 'user', content: userMessage },
   ];
 
-  const { allCitations, allSuggestions, steps, totalTokens } = await runToolLoop(messages, sessionId);
-
-  const final = await openai.chat.completions.create({ model: env.CHAT_MODEL, messages });
+  const { allCitations, allSuggestions, steps, totalTokens, finalAnswer } = await runToolLoop(messages, sessionId);
 
   return {
-    answer: final.choices[0].message.content ?? '',
+    answer: finalAnswer,
     citations: allCitations,
     suggestions: allSuggestions,
     steps,
-    tokensUsed: totalTokens + (final.usage?.total_tokens ?? 0),
+    tokensUsed: totalTokens,
   };
 }
 
