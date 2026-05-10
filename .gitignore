@@ -79,6 +79,14 @@ web_modules/
 .env.production.local
 .env.local
 
+# Backend runtime data
+backend/data/
+backend/tmp/
+backend/dist/
+
+# Frontend build output
+frontend/dist/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

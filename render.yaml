@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: codebase-assistant-api
+    runtime: node
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        value: https://codeassist.tarun.win
+      # Set these in the Render dashboard — never commit secrets
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-6
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        value: codebase-assistant
+      - key: SESSION_DB_PATH
+        value: ./data/sessions.db
+      - key: TEMP_CLONE_DIR
+        value: ./tmp/repos
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+      - key: MAX_REPO_SIZE_MB
+        value: 50
+      - key: MAX_CONCURRENT_INGESTIONS
+        value: 3

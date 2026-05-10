@@ -1,0 +1,39 @@
+{
+  "name": "codebase-assistant-backend",
+  "version": "1.0.0",
+  "description": "AI-powered codebase assistant — backend API",
+  "scripts": {
+    "dev": "tsx watch --no-warnings=ExperimentalWarning src/index.ts",
+    "build": "tsc",
+    "start": "node --no-warnings=ExperimentalWarning dist/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@pinecone-database/pinecone": "^3.0.0",
+    "adm-zip": "^0.5.10",
+    "cors": "^2.8.5",
+    "diff": "^9.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.47.1",
+    "simple-git": "^3.25.0",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.5",
+    "@types/cors": "^2.8.17",
+    "@types/diff": "^7.0.2",
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.9",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^22.19.18",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.15.6",
+    "typescript": "^5.4.5"
+  }
+}
