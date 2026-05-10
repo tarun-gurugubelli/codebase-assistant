@@ -2,9 +2,10 @@ import {
   Component,
   inject,
   signal,
+  effect,
   Input,
   OnInit,
-  AfterViewChecked,
+  OnDestroy,
   ViewChild,
   ElementRef,
   ChangeDetectionStrategy,
@@ -28,10 +29,12 @@ import { FileTreeNode } from '../../core/models/session.model';
   standalone: true,
   imports: [FormsModule, SpinnerComponent, SkeletonComponent, MessageComponent, FileTreeComponent, DiffViewerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // Host fills the <main> flex column so the inner layout has a bounded height to scroll within
+  host: { class: 'flex flex-col flex-1 min-h-0 overflow-hidden' },
   template: `
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <!-- Chat panel -->
-      <div class="flex flex-col flex-1 overflow-hidden">
+      <div class="flex flex-col flex-1 min-h-0 overflow-hidden">
         <!-- Thinking indicator -->
         @if (thinkingStep()) {
           <div class="px-4 py-2 bg-gray-900 border-b border-gray-800 text-xs text-gray-400 flex items-center gap-2">
@@ -41,7 +44,7 @@ import { FileTreeNode } from '../../core/models/session.model';
         }
 
         <!-- Messages -->
-        <div #messageContainer class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div #messageContainer class="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
           @if (historyLoading()) {
             <!-- Skeleton while history loads -->
             <div class="space-y-4">
@@ -174,7 +177,7 @@ import { FileTreeNode } from '../../core/models/session.model';
     </div>
   `,
 })
-export class ChatComponent implements OnInit, AfterViewChecked {
+export class ChatComponent implements OnInit, OnDestroy {
   @Input() id!: string;
   @ViewChild('messageContainer') messageContainer!: ElementRef<HTMLElement>;
 
@@ -192,7 +195,17 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   activeDiffs = signal<Array<{ filePath: string; diff: string; summary: string }>>([]);
   fileTree = signal<FileTreeNode[]>([]);
 
-  private shouldScroll = false;
+  // Scroll to bottom whenever messages change, but only if the user
+  // hasn't manually scrolled up (within 120px of bottom = "near enough").
+  private scrollEffect = effect(() => {
+    this.chatService.messages(); // track signal
+    // Use setTimeout so the DOM has painted the new content before measuring
+    setTimeout(() => this.scrollToBottomIfNear(), 0);
+  });
+
+  ngOnDestroy(): void {
+    this.scrollEffect.destroy();
+  }
 
   ngOnInit(): void {
     this.chatService.clearLocal();
@@ -209,27 +222,23 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  ngAfterViewChecked(): void {
-    if (this.shouldScroll) {
-      this.scrollToBottom();
-      this.shouldScroll = false;
-    }
-  }
-
   send(): void {
     const text = this.inputText.trim();
     if (!text || this.chatService.isStreaming()) return;
     this.inputText = '';
     this.activeDiffs.set([]);
     this.highlightedPaths.set([]);
-    this.shouldScroll = true;
+    // Force scroll on send (user just submitted, always go to bottom)
+    this.forceScrollNext = true;
 
     this.chatService.sendMessage(this.id, text, (evt: SSEEvent) => {
       this.handleSSEEvent(evt);
       this.cdr.markForCheck();
-      this.shouldScroll = true;
     });
   }
+
+  // When true, the next scrollToBottomIfNear call ignores the proximity check
+  private forceScrollNext = false;
 
   private handleSSEEvent(evt: SSEEvent): void {
     if (evt.type === 'thinking') {
@@ -285,8 +294,13 @@ export class ChatComponent implements OnInit, AfterViewChecked {
 
   toggleRightPanel(): void { this.rightPanelVisible.update(v => !v); }
 
-  private scrollToBottom(): void {
+  private scrollToBottomIfNear(): void {
     const el = this.messageContainer?.nativeElement;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (this.forceScrollNext || distanceFromBottom < 120) {
+      el.scrollTop = el.scrollHeight;
+      this.forceScrollNext = false;
+    }
   }
 }
