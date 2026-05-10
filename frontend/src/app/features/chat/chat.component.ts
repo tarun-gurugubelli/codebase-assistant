@@ -44,7 +44,7 @@ import { FileTreeNode } from '../../core/models/session.model';
         }
 
         <!-- Messages -->
-        <div #messageContainer class="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+        <div #messageContainer class="flex-1 min-h-0 overflow-y-auto px-4 py-6 space-y-8">
           @if (historyLoading()) {
             <!-- Skeleton while history loads -->
             <div class="space-y-4">
